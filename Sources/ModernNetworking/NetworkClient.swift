@@ -1,9 +1,5 @@
 import Foundation
 
-public protocol RequestInterceptor: Sendable {
-    func intercept(_ request: inout URLRequest) async throws
-}
-
 public actor NetworkClient {
     private let session: URLSession
     private let interceptors: [RequestInterceptor]

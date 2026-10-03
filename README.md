@@ -1,26 +1,32 @@
 # ModernNetworking 🌐
 
-A modern, type-safe HTTP networking library for Swift 6 with built-in concurrency, request interceptors, and exponential backoff retries.
+A type-safe, Swift 6 async/await HTTP networking client with automatic exponential backoff retries, request interceptors, and strict concurrency safety.
 
-[![Swift](https://img.shields.io/badge/Swift-5.9%20%7C%206.0-orange?style=flat-square&logo=swift)](https://swift.org)
-[![Platforms](https://img.shields.io/badge/Platforms-iOS%20%7C%20macOS%20%7C%20tvOS%20%7C%20watchOS-blue?style=flat-square&logo=apple)](https://developer.apple.com)
+[![CI](https://github.com/nilkanthdesai76/swift-modern-networking/actions/workflows/ci.yml/badge.svg)](https://github.com/nilkanthdesai76/swift-modern-networking/actions)
+[![Swift](https://img.shields.io/badge/Swift-6.0-orange?style=flat-square&logo=swift)](https://swift.org)
+[![Platform](https://img.shields.io/badge/Platform-iOS%2015%2B%20%7C%20macOS%2012%2B-blue?style=flat-square&logo=apple)](https://developer.apple.com)
 [![SPM](https://img.shields.io/badge/SPM-compatible-brightgreen?style=flat-square)](https://swift.org/package-manager/)
 [![License](https://img.shields.io/badge/License-MIT-lightgrey?style=flat-square)](LICENSE)
 
+<p align="center">
+  <img src="assets/networking_architecture.svg" alt="ModernNetworking Pipeline" width="100%"/>
+</p>
+
 ---
 
-## Highlights
+## Features
 
-- ⚡ **Pure Swift Concurrency**: Actor-isolated `NetworkClient` with full `Sendable` compliance.
-- 🔁 **Automatic Exponential Backoff**: Configurable `RetryPolicy` for resilient handling of transient 5xx server errors and network drops.
-- 🔌 **Pluggable Interceptors**: Cleanly inject auth headers, API tokens, loggers, or request signatures.
-- 🎯 **Declarative Endpoints**: Clean protocol-oriented design replacing massive URL building boilerplate.
+- ⚡ **Swift Concurrency Native**: Built entirely around `actor`, `async/await`, and `Sendable`. Zero completion handlers.
+- 🔄 **Intelligent Retry Policy**: Automatic exponential backoff for transient network drops and server 5xx errors.
+- 🛡️ **Request Interceptors**: Clean pipeline for attaching bearer authentication tokens, API keys, or custom logging.
+- 🎯 **Protocol-Oriented Endpoints**: Cleanly encapsulate paths, HTTP methods, headers, and query parameters.
+- 📦 **Type-Safe Decoding**: Directly decodes JSON payloads into strongly typed `Decodable & Sendable` models.
 
 ---
 
 ## Installation
 
-Add **ModernNetworking** via Swift Package Manager:
+Add **ModernNetworking** to your `Package.swift`:
 
 ```swift
 dependencies: [
@@ -30,7 +36,7 @@ dependencies: [
 
 ---
 
-## Quick Example
+## Usage
 
 ### 1. Define an Endpoint
 
@@ -41,39 +47,34 @@ import ModernNetworking
 struct UserProfileEndpoint: Endpoint {
     let userId: String
 
-    var baseURL: URL { URL(string: "https://api.example.com/v1")! }
-    var path: String { "users/\(userId)" }
+    var baseURL: URL { URL(string: "https://api.example.com")! }
+    var path: String { "v1/users/\(userId)" }
     var method: HTTPMethod { .get }
+    var headers: [String: String]? { ["Accept": "application/json"] }
 }
 ```
 
-### 2. Execute Requests
+### 2. Configure Interceptors & Execute
 
 ```swift
 import ModernNetworking
 
-struct User: Codable, Sendable {
-    let id: String
-    let name: String
+// Attach authentication interceptor
+let authInterceptor = HeaderInterceptor(headers: [
+    "Authorization": "Bearer YOUR_JWT_TOKEN"
+])
+
+let client = NetworkClient(interceptors: [authInterceptor])
+
+do {
+    let profile: UserProfile = try await client.send(
+        UserProfileEndpoint(userId: "42"),
+        retryPolicy: .standard
+    )
+    print("Welcome \(profile.name)")
+} catch {
+    print("Network failure: \(error.localizedDescription)")
 }
-
-let client = NetworkClient()
-let user: User = try await client.send(UserProfileEndpoint(userId: "42"))
-print("Loaded user: \(user.name)")
-```
-
-### 3. Add an Auth Interceptor
-
-```swift
-struct BearerAuthInterceptor: RequestInterceptor {
-    let token: String
-
-    func intercept(_ request: inout URLRequest) async throws {
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-    }
-}
-
-let client = NetworkClient(interceptors: [BearerAuthInterceptor(token: "token_here")])
 ```
 
 ---
